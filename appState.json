@@ -1,0 +1,153 @@
+{
+  "EDITOR_STATE": {
+    "allProjectFiles": {
+      "25ef0f3e-c6c7-4601-a345-ff6d184bdf93": {
+        "id": "25ef0f3e-c6c7-4601-a345-ff6d184bdf93",
+        "parent": null,
+        "name": "github-webhook-listener",
+        "type": "DIRECTORY",
+        "isDirectory": true,
+        "children": [
+          "e436f43e-3824-46b2-8f73-ee0dc71281aa"
+        ],
+        "isRemovable": false,
+        "filePath": "github-webhook-listener"
+      },
+      "e436f43e-3824-46b2-8f73-ee0dc71281aa": {
+        "id": "e436f43e-3824-46b2-8f73-ee0dc71281aa",
+        "parent": "25ef0f3e-c6c7-4601-a345-ff6d184bdf93",
+        "name": "handler.js",
+        "type": "JS_LAMBDA",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "github-webhook-listener/handler.js",
+        "code": "const crypto = require('crypto');\n\nfunction signRequestBody(key, body) {\n  return `sha1=${crypto.createHmac('sha1', key).update(body, 'utf-8').digest('hex')}`;\n}\n\nmodule.exports.githubWebhookListener = (event, context, callback) => {\n  var errMsg; // eslint-disable-line\n  const token = process.env.GITHUB_WEBHOOK_SECRET;\n  const headers = event.headers;\n  const sig = headers['X-Hub-Signature'];\n  const githubEvent = headers['X-GitHub-Event'];\n  const id = headers['X-GitHub-Delivery'];\n  const calculatedSig = signRequestBody(token, event.body);\n\n  if (typeof token !== 'string') {\n    errMsg = 'Must provide a \\'GITHUB_WEBHOOK_SECRET\\' env variable';\n    return callback(null, {\n      statusCode: 401,\n      headers: { 'Content-Type': 'text/plain' },\n      body: errMsg,\n    });\n  }\n\n  if (!sig) {\n    errMsg = 'No X-Hub-Signature found on request';\n    return callback(null, {\n      statusCode: 401,\n      headers: { 'Content-Type': 'text/plain' },\n      body: errMsg,\n    });\n  }\n\n  if (!githubEvent) {\n    errMsg = 'No X-Github-Event found on request';\n    return callback(null, {\n      statusCode: 422,\n      headers: { 'Content-Type': 'text/plain' },\n      body: errMsg,\n    });\n  }\n\n  if (!id) {\n    errMsg = 'No X-Github-Delivery found on request';\n    return callback(null, {\n      statusCode: 401,\n      headers: { 'Content-Type': 'text/plain' },\n      body: errMsg,\n    });\n  }\n\n  if (sig !== calculatedSig) {\n    errMsg = 'X-Hub-Signature incorrect. Github webhook token doesn\\'t match';\n    return callback(null, {\n      statusCode: 401,\n      headers: { 'Content-Type': 'text/plain' },\n      body: errMsg,\n    });\n  }\n\n  /* eslint-disable */\n  console.log('---------------------------------');\n  console.log(`Github-Event: \"${githubEvent}\" with action: \"${event.body.action}\"`);\n  console.log('---------------------------------');\n  console.log('Payload', event.body);\n  /* eslint-enable */\n\n  // Do custom stuff here with github event data\n  // For more on events see https://developer.github.com/v3/activity/events/types/\n\n  const response = {\n    statusCode: 200,\n    body: JSON.stringify({\n      input: event,\n    }),\n  };\n\n  return callback(null, response);\n};\n",
+        "config": {
+          "runtime": "nodejs8.10",
+          "handler": "githubWebhookListener",
+          "timeout": 60,
+          "memory": 128,
+          "layers": []
+        },
+        "triggers": [
+          {
+            "resourceName": "apigusEast1githubWebhookListenerwebhookpost",
+            "config": {}
+          }
+        ]
+      },
+      "19c13f81-16db-4722-8349-f9f449710c3b": {
+        "id": "19c13f81-16db-4722-8349-f9f449710c3b",
+        "parent": null,
+        "name": "serverless.yml",
+        "type": "YAML_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "serverless.yml",
+        "code": "service: github-webhook-listener\n\nprovider:\n  name: aws\n  runtime: nodejs8.10\n  environment:\n    GITHUB_WEBHOOK_SECRET: REPLACE-WITH-YOUR-SECRET-HERE\n\nfunctions:\n  githubWebhookListener:\n    handler: handler.githubWebhookListener\n    events:\n      - http:\n          path: webhook\n          method: post\n          cors: true\n"
+      },
+      "4c3afc19-dcfd-4fea-b168-057c9c6e13ba": {
+        "id": "4c3afc19-dcfd-4fea-b168-057c9c6e13ba",
+        "parent": null,
+        "name": "README.md",
+        "type": "MARKDOWN_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "README.md",
+        "code": "<!--\ntitle: 'AWS Serverless Github Webhook Listener example in NodeJS'\ndescription: 'This service will listen to github webhooks fired by a given repository.'\nlayout: Doc\nframework: v1\nplatform: AWS\nlanguage: nodeJS\nauthorLink: 'https://github.com/adambrgmn'\nauthorName: 'Adam Bergman'\nauthorAvatar: 'https://avatars1.githubusercontent.com/u/13746650?v=4&s=140'\n-->\n# Serverless Github webhook listener\n\nThis service will listen to github webhooks fired by a given repository.\n\n## Use Cases\n\n* Custom github notifications\n* Automatically tagging github issues\n* Pinging slack on new Pull requests\n* Welcoming new stargazers\n* etc.\n\n## How it works\n\n```\nâââââââââââââââââ               âââââââââââââ\nâ               â               â           â\nâ  Github repo  â               â   Github  â\nâ   activity    âââââTriggerââââ¶â  Webhook  â\nâ               â               â           â\nâââââââââââââââââ               âââââââââââââ\n                                      â\n                     âââââPOSTâââââââââ\n                     â\n          ââââââââââââ¼ââââââââââ\n          â ââââââââââââââââââ â\n          â â  API Gateway   â â\n          â â    Endpoint    â â\n          â ââââââââââââââââââ â\n          âââââââââââ¬âââââââââââ\n                    â\n                    â\n         ââââââââââââ¼âââââââââââ\n         â ââââââââââââââââââ  â\n         â â                â  â\n         â â     Lambda     â  â\n         â â    Function    â  â\n         â â                â  â\n         â ââââââââââââââââââ  â\n         âââââââââââââââââââââââ\n                    â\n                    â\n                    â¼\n         ââââââââââââââââââââââ\n         â                    â\n         â      Do stuff      â\n         â                    â\n         ââââââââââââââââââââââ\n```\n\n## Setup\n\n1. Set your webhook secret token in `serverless.yml` by replacing `REPLACE-WITH-YOUR-SECRET-HERE` in the environment variables `GITHUB_WEBHOOK_SECRET`.\n\n  ```yml\n  provider:\n    name: aws\n    runtime: nodejs8.10\n    environment:\n      GITHUB_WEBHOOK_SECRET: REPLACE-WITH-YOUR-SECRET-HERE\n  ```\n\n2. Deploy the service\n\n  ```yaml\n  serverless deploy\n  ```\n\n  After the deploy has finished you should see something like:\n  ```bash\n  Service Information\n  service: github-webhook-listener\n  stage: dev\n  region: us-east-1\n  api keys:\n    None\n  endpoints:\n    POST - https://abcdefg.execute-api.us-east-1.amazonaws.com/dev/webhook\n  functions:\n    github-webhook-.....github-webhook-listener-dev-githubWebhookListener\n  ```\n\n3. Configure your webhook in your github repository settings. [Setting up a Webhook](https://developer.github.com/webhooks/creating/#setting-up-a-webhook)\n\n  **(1.)** Plugin your API POST endpoint. (`https://abcdefg.execute-api.us-east-1.amazonaws.com/dev/webhook` in this example). Run `sls info` to grab your endpoint if you don't have it handy.\n\n  **(2.)** Plugin your secret from `GITHUB_WEBHOOK_SECRET` environment variable\n\n  **(3.)** Choose the types of events you want the github webhook to fire on\n\n  ![webhook-steps](https://cloud.githubusercontent.com/assets/532272/21461773/db7cecd2-c911e6-936bbf4661fe14.jpg)\n\n\n4. Manually trigger/test the webhook from settings or do something in your github repo to trigger a webhook.\n\n  You can tail the logs of the lambda function with the below command to see it running.\n  ```bash\n  serverless logs -f githubWebhookListener -t\n  ```\n\n  You should see the event from github in the lambda functions logs.\n\n5. Use your imagination and do whatever you want with your new github webhook listener! ð\n\nLet us know if you come up with a cool use case for this service =)\n"
+      },
+      "1a871780-0f1a-4c23-82ff-0710f1269ef3": {
+        "id": "1a871780-0f1a-4c23-82ff-0710f1269ef3",
+        "parent": null,
+        "name": "package.json",
+        "type": "JSON_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": "package.json",
+        "code": "{\n  \"name\": \"aws-github-webhook-listener\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Extend your github repositories with this github webhook listener\",\n  \"main\": \"handler.js\",\n  \"scripts\": {\n    \"deploy\": \"serverless deploy\",\n    \"logs\": \"serverless logs -f githubWebhookListener -t\"\n  },\n  \"author\": \"David Wells\",\n  \"license\": \"MIT\"\n}\n"
+      },
+      "2d7db761-173d-4ff4-8db9-16851b988db4": {
+        "id": "2d7db761-173d-4ff4-8db9-16851b988db4",
+        "parent": null,
+        "name": ".gitignore",
+        "type": "TEXT_FILE",
+        "isDirectory": false,
+        "children": [],
+        "isRemovable": true,
+        "filePath": ".gitignore",
+        "code": "node_modules\n.serverless\n"
+      }
+    },
+    "deletedFiles": [],
+    "rootNode": "25ef0f3e-c6c7-4601-a345-ff6d184bdf93",
+    "openFiles": [
+      "e436f43e-3824-46b2-8f73-ee0dc71281aa"
+    ],
+    "currentFileId": "e436f43e-3824-46b2-8f73-ee0dc71281aa",
+    "resources": {
+      "apigusEast1githubWebhookListenerwebhookpost": {
+        "type": "API_GATEWAY",
+        "name": "apigusEast1githubWebhookListenerwebhookpost",
+        "config": {
+          "selectedRegion": "us-east-1",
+          "apiName": "githubWebhookListener",
+          "apiMode": 0,
+          "endpointType": "EDGE",
+          "resourceName": "webhook",
+          "resourcePath": "/webhook",
+          "resourceMode": 0,
+          "restMethod": "POST",
+          "proxyIntegration": true,
+          "enableCORS": true,
+          "stageMode": 0,
+          "stageName": "dev"
+        }
+      }
+    },
+    "customTemplate": {
+      "dialect": "CloudFormation",
+      "definitions": {}
+    },
+    "envVariables": [
+      {
+        "lambdaId": "all",
+        "varKey": "GITHUB_WEBHOOK_SECRET",
+        "varValue": "adrt2019#",
+        "shouldPersist": true,
+        "displayOnly": false,
+        "editable": true
+      },
+      {
+        "lambdaId": "all",
+        "varKey": "SIGMA_AWS_ACC_ID",
+        "varValue": null,
+        "shouldPersist": false,
+        "displayOnly": false,
+        "editable": false
+      }
+    ],
+    "packageJSON": {
+      "dependencies": {}
+    }
+  },
+  "PROJECT_META": {
+    "projectName": "aws-github-webhook-listener",
+    "projectDescription": "Extend your github repositories with this github webhook listener",
+    "projectVersion": "1.0.0",
+    "projectRegion": "us-east-1",
+    "platform": "AWS",
+    "platformRegions": {},
+    "lastSave": 1565695099464
+  },
+  "VCS_STATE": {
+    "provider": "GitHub",
+    "repo": {
+      "name": "examples",
+      "url": "https://github.com/HirudineeADRT/hiru1308_webhook"
+    }
+  }
+}
