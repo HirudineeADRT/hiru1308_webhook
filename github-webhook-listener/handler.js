@@ -60,7 +60,7 @@ module.exports.githubWebhookListener = (event, context, callback) => {
 
   /* eslint-disable */
   console.log('---------------------------------');
-  console.log(`Github-Event: "${githubEvent}" with action: "${event.body.action}"`);
+  console.log(`Github-Event: "${githubEvent}" with action: "${event.body}"`);
   console.log('---------------------------------');
   console.log('Payload', event.body);
   /* eslint-enable */
@@ -74,6 +74,7 @@ module.exports.githubWebhookListener = (event, context, callback) => {
       input: event,
     }),
   };
-
+  var obj = JSON.parse(event.body); 
+  console.log(obj);
   return callback(null, response);
 };
